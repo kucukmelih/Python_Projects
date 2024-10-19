@@ -29,4 +29,4 @@ Clone the project
 ```bash
 git clone <https://github.com/me50/kucukmelih.git>
 
-python project.py
+python3 project.py
