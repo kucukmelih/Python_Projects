@@ -1,112 +1,112 @@
 import os  
 import sys 
-import tty  # Terminalin giriş modunu değiştirmek için kullanılan kütüphane
-import termios  # Terminalin giriş/çıkış ayarlarını değiştirmek için kullanılan kütüphane
+import tty  # Library used to change the input mode of the terminal
+import termios  # Library used to change the terminal input/output settings
 
-# Dosya okuma sınıfı
+# File reading class
 class FileReader:
     def __init__(self, file_path): 
         self.file_path = file_path  
-        self.content = self.read_file()  # Dosyanın içeriğini okuyup saklıyoruz
+        self.content = self.read_file()  # We store the content of the file after reading it
 
-    # Dosya okuma fonksiyonu
+    # File reading function
     def read_file(self):
         if not os.path.exists(self.file_path):
             print(f"Error: The file '{self.file_path}' does not exist.")
             sys.exit(1)
         try:
-            # Dosyayı okuyoruz ve satır satır listeye ekliyoruz
+            # We read the file and add each line to a list
             with open(self.file_path, 'r', encoding='utf-8') as file:
                 return file.readlines()
         except Exception as e:
             print(f"Error reading file: {e}")
             sys.exit(1)
 
-# Sayfalama işlemi 
+# Pagination class 
 class Pagination:
     def __init__(self, content, page_size):
-        # İçeriği, her biri page_size kadar satırdan oluşan sayfalara bölüyoruz
+        # We split the content into pages, each containing 'page_size' number of lines
         self.pages = [content[i:i + page_size] for i in range(0, len(content), page_size)]
 
-    # Belirtilen sayfa numarasını döndüren fonksiyon
+    # Function to return the specified page number
     def get_page(self, page_number):
-        # Eğer sayfa numarası geçerli ise, sayfayı döndürüyoruz, değilse None döndürür
+        # If the page number is valid, return the page, otherwise return None
         return self.pages[page_number] if 0 <= page_number < len(self.pages) else None
 
-# Terminal işlemleri için 
+# Class for terminal operations
 class TerminalManager:
     @staticmethod
     def display_page(content, current_page, total_pages, total_lines, show_footer=True):
-        # Terminali temizliyoruz (Windows için 'cls', diğer sistemler için 'clear')
+        # Clear the terminal (use 'cls' for Windows and 'clear' for other systems)
         os.system('cls' if os.name == 'nt' else 'clear')
-        # Sayfanın içeriğini ekrana yazdırıyoruz
+        # Print the content of the page
         print(''.join(content))
-        # Eğer footer (sayfa bilgisi) gösterilecekse
+        # If the footer (page info) is to be shown
         if show_footer:
-            print(f"\nSayfa {current_page + 1}/{total_pages}, Toplam Satır: {total_lines}")
-            print("Devam için 'Boşluk', önceki sayfa için 'B', çıkmak için 'Q'.")
+            print(f"\nPage {current_page + 1}/{total_pages}, Total Lines: {total_lines}")
+            print("Press 'Space' to continue, 'B' for previous page, 'Q' to quit.")
 
-# Kullanıcıdan klavye girdisi almak 
+# Class to handle user keyboard input
 class InputHandler:
     @staticmethod
     def wait_for_input():
-        # Terminal ayarlarını değiştirmek için dosya tanımlayıcısını alıyoruz
+        # Get the file descriptor for changing terminal settings
         fd = sys.stdin.fileno()
         old_settings = termios.tcgetattr(fd)
         try:
-            # Terminali ham (raw) moda getiriyoruz, böylece girdileri satır sonu olmadan okuyabiliriz
+            # Set the terminal to raw mode so we can read inputs without waiting for a newline
             tty.setraw(fd)
             while True:
-                # Klavyeden bir karakter okuyoruz ve büyük harfe çeviriyoruz
+                # Read a character from the keyboard and convert it to uppercase
                 char = sys.stdin.read(1).upper()
-                # Eğer karakter ' ', 'Q' veya 'B' ise bu karakteri geri döndürüyoruz
+                # If the character is ' ', 'Q', or 'B', return it
                 if char in [' ', 'Q', 'B']:
                     return char
         finally:
-            # Terminali eski ayarlarına geri döndürüyoruz
+            # Restore the terminal to its old settings
             termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
 
 def main():
     if len(sys.argv) != 2:
-        print("Kullanım: python text_browser.py <dosya_yolu>")
+        print("Usage: python text_browser.py <file_path>")
         sys.exit(1)
 
-    # FileReader sınıfını kullanarak dosya içeriğini okuyoruz
+    # Use the FileReader class to read the file content
     file_reader = FileReader(sys.argv[1])
-    content = file_reader.content  # İçeriği alıyoruz
-    total_lines = len(content)  # Toplam satır sayısını hesaplıyoruz
+    content = file_reader.content  # Get the content
+    total_lines = len(content)  # Calculate the total number of lines
 
-    # Pagination sınıfını kullanarak içeriği sayfalara bölüyoruz (her sayfada 10 satır)
+    # Use the Pagination class to split the content into pages (10 lines per page)
     pagination = Pagination(content, page_size=10)
-    total_pages = len(pagination.pages)  # Toplam sayfa sayısını hesaplıyoruz
-    current_page = 0  # Başlangıç sayfası (ilk sayfa)
+    total_pages = len(pagination.pages)  # Calculate the total number of pages
+    current_page = 0  # Start on the first page
 
-    # Sonsuz döngüyle sayfalar arasında gezinmeyi sağlıyoruz
+    # Infinite loop to navigate between pages
     while True:
-        # Mevcut sayfayı alıyoruz
+        # Get the current page
         page_content = pagination.get_page(current_page)
-        # Eğer sayfa yoksa, döngüyü sonlandırıyoruz
+        # If no page exists, break the loop
         if page_content is None:
             break
 
-        # Sayfayı terminale yazdırıyoruz
+        # Display the page on the terminal
         TerminalManager.display_page(page_content, current_page, total_pages, total_lines)
-        # Kullanıcıdan giriş bekliyoruz (boşluk, 'B', 'Q')
+        # Wait for user input (space, 'B', 'Q')
         user_input = InputHandler.wait_for_input()
 
         if user_input == 'Q':
-            # Çıkmadan önce sayfayı footer olmadan tekrar gösteriyoruz
+            # Before quitting, display the page without the footer
             TerminalManager.display_page(page_content, current_page, total_pages, total_lines, show_footer=False)
             break
-        # Eğer kullanıcı 'boşluk' tuşuna basmışsa bir sonraki sayfaya geçiyoruz
+        # If the user presses the space key, move to the next page
         elif user_input == ' ':
-            current_page = min(current_page + 1, total_pages - 1)  # Sayfa sınırını aşmıyoruz
-        # Eğer kullanıcı 'B' tuşuna basmışsa bir önceki sayfaya dönüyoruz
+            current_page = min(current_page + 1, total_pages - 1)  # Don't exceed the last page
+        # If the user presses the 'B' key, go to the previous page
         elif user_input == 'B':
-            current_page = max(current_page - 1, 0)  # İlk sayfanın altına inmiyoruz
+            current_page = max(current_page - 1, 0)  # Don't go below the first page
 
-    # Programdan çıkıyoruz
-    print("Metin tarayıcıdan çıkılıyor...\n")
+    # Exiting the program
+    print("Exiting text browser...\n")
 
 if __name__ == "__main__":
     main()
